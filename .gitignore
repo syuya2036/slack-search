@@ -8,3 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
+.pytest_cache/
+__pycache__/
+
+	
+# local files
+.env
+*.db
+*.faiss
