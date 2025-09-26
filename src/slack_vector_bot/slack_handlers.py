@@ -50,12 +50,29 @@ def register_handlers(app):
     def ask_command(ack, respond, command, logger):
         ack()
         question = (command.get("text") or "").strip()
+        channel_id = command.get("channel_id")
+        user_id = command.get("user_id")
+
         if not question:
             respond(
                 "質問を入力してください。例: `/ask 新プロダクトの発表はどのスレッド？`"
             )
             return
+
+        # 1) プレースホルダーを投稿（生成中表示 + 質問は残す）
+        placeholder_text = f":mag: *検索中…*  <@{user_id}>\n> {question}"
         try:
+            ph = client.chat_postMessage(
+                channel=channel_id, text=placeholder_text
+            )
+            ph_ts = ph["ts"]
+        except SlackApiError as e:
+            logger.error(f"placeholder error: {e.response}")
+            respond(f"検索開始に失敗しました: {e.response.get('error')}")
+            return
+
+        try:
+            # 2) RAG 検索
             queries = gen_search_queries(question)
             q_vecs = embed_texts(queries)
             cand: dict[int, float] = {}
@@ -65,24 +82,42 @@ def register_handlers(app):
                     if idx == -1:
                         continue
                     cand[idx] = max(cand.get(idx, -1e9), float(score))
-            # 元質問で軽く再ランク（必要なら厳密な器用度に改修可）
+
+            hits = []
             if cand:
-                # FAISS index -> メッセージ取得
                 faiss_indices = sorted(
                     cand.keys(), key=lambda k: cand[k], reverse=True
                 )
                 hits = store.fetch_meta_by_faiss_indices(
                     faiss_indices[:MAX_RETURN]
                 )
-                summary = summarize_results(question, hits)
-                respond(summary)
-            else:
-                respond(
-                    "該当が見つかりませんでした。インデックスの蓄積をお待ちください。"
-                )
+
+            summary = (
+                summarize_results(question, hits)
+                if hits
+                else "該当が見つかりませんでした。"
+            )
+
+            # 3) ログ保存
+            store.log_query(
+                channel_id=channel_id,
+                user_id=user_id,
+                question=question,
+                result_count=len(hits),
+            )
+
+            # 4) プレースホルダーを「結果」に更新（質問は残す）
+            final_text = f":white_check_mark: *検索結果*  <@{user_id}>\n> {question}\n\n{summary}"
+            client.chat_update(channel=channel_id, ts=ph_ts, text=final_text)
+
         except Exception as e:
             logger.exception(e)
-            respond(f"検索中にエラーが発生しました: {e}")
+            # エラー時はプレースホルダーをエラー表示に更新
+            err_text = f":warning: *検索でエラーが発生しました*\n> {question}\n\n`{e}`"
+            try:
+                client.chat_update(channel=channel_id, ts=ph_ts, text=err_text)
+            except Exception:
+                pass
 
     @app.command("/reindex")
     def reindex_command(ack, respond, command, logger):

@@ -100,6 +100,8 @@ INDEX_PATH=index.faiss
 
 ## 8. 動作確認
 
+- Slackでボットをチャンネルに招待
+  - `/invite @your_bot_name`
 - Slack で `/ask 最近のリリース情報` と入力
   → 関連メッセージのリンクが返る
 - Slack で `/reindex` と入力

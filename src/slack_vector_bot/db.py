@@ -25,6 +25,15 @@ CREATE TABLE IF NOT EXISTS vector_map (
     faiss_id   INTEGER UNIQUE
 );
 CREATE INDEX IF NOT EXISTS idx_vector_map_faiss ON vector_map(faiss_id);
+
+CREATE TABLE IF NOT EXISTS search_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    question TEXT NOT NULL,
+    result_count INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -74,6 +83,18 @@ class MessageStore:
         with self._index_lock:
             if self.index is not None:
                 faiss.write_index(self.index, self.index_path)
+
+    def log_query(
+        self, channel_id: str, user_id: str, question: str, result_count: int
+    ) -> None:
+        conn = self._conn()
+        with self._db_lock:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO search_logs(channel_id, user_id, question, result_count) VALUES(?,?,?,?)",
+                (channel_id, user_id, question, int(result_count)),
+            )
+            conn.commit()
 
     # -------- writes --------
     def upsert_message(
