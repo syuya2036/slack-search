@@ -11,3 +11,6 @@ dependencies = [
 	"faiss-cpu>=1.8.0",
 	"numpy>=2.3.3",
 ]
+
+[project.scripts]
+slack-vector-bot = "slack_vector_bot.main:run"

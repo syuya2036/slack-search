@@ -48,6 +48,8 @@ Slack のメッセージをベクトル化して検索できるボット。`uv` 
    - `/reindex` → 同様にダミー URL
 
 2. 実際は **Socket Mode** で処理するため、Request URL は動作しなくても OK。
+3. Socket Mode を有効化（**Settings → Socket Mode**）。
+   - **App-Level Token** は前ステップで作成したものを使用。
 
 ---
 

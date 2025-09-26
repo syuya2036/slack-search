@@ -12,7 +12,7 @@ from .config import (
 )
 from .db import MessageStore
 from .embeddings import embed_texts
-from .llm import gen_search_queries, summarize_results
+from .llms import gen_search_queries, summarize_results
 
 store = MessageStore(DB_PATH, INDEX_PATH)
 client = WebClient(token=SLACK_BOT_TOKEN)
